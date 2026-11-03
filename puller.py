@@ -26,19 +26,23 @@ class ParsedEventDescription:
         self.hours = hours
 
 def getRouteFromDescription(description):
+  if description:
     if "Route" in description:
         routeIndex = description.index("Route")
         route = description[routeIndex+6:routeIndex+8]
         return route
-
-def getHoursFromDescription(description):
-    if "Hours" in description:
-        hoursIndex = description.index("Hours")
-        hours = description[hoursIndex+6:]
-        return hours
     else:
-        hours = currentHoursWorked
-        return hours
+      return description
+  else:
+    return ""
+
+def getHours(startTime, endTime):
+  # subtract end time from start time and return that
+  try:
+    hours = datetime.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%S%z') - datetime.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%S%z')
+  except ValueError as e:
+    print(f'Error: {e}')
+  return hours
     
 def setLastPulled(time):
     lastPulledEntry = time
@@ -97,7 +101,6 @@ def main():
         .list(
             calendarId=CALENDAR_ID,
             timeMax=now,
-            maxResults=10,
             singleEvents=True,
             orderBy="startTime",
         )
@@ -115,14 +118,13 @@ def main():
       timezone = event["start"].get(event["start"].get("timeZone"))
       eventDate = start[:10]
       eventTime = start[12:]
-      parsedEventDescription = ParsedEventDescription(getRouteFromDescription(event["description"]), getHoursFromDescription(event["description"]))
+      parsedEventDescription = ParsedEventDescription(getRouteFromDescription(event["description"]), getHours(event["start"].get("dateTime"), event["end"].get("dateTime")))
     #   lastPulledEntry = setLastPulled(now)
     #   print(lastPulledEntry)
       print(f'now: {now}')
       print(f'event: {start}')
-      print(timezone)
 
-      createNewMarkdownFile(f'{eventDate} - Route {getRouteFromDescription(event["description"])}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
+      createNewMarkdownFile(f'{eventDate} - {getRouteFromDescription(event["description"])}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
 
   except HttpError as error:
     print(f"An error occurred: {error}")
