@@ -44,10 +44,11 @@ syncTracker = SyncTracker()
 def getGreenCardTime(route):
   for specialRoute in specialRoutesList:
     if route == specialRoute:
-      return "true"
+      hasGreenCardTime = "true"
       break
     else:
-      return "false"
+      hasGreenCardTime = "false"
+  return hasGreenCardTime
 
 def getRouteFromDescription(description):
   if description:
