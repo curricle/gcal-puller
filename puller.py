@@ -1,3 +1,7 @@
+# todo: 
+# - convert hours to decimal 
+# - keep pulling if event has no description - 
+
 import datetime
 import os.path
 import re
@@ -52,10 +56,14 @@ def getHours(startTime, endTime):
     hours = datetime.datetime.strptime(endTime, '%Y-%m-%dT%H:%M:%S%z') - datetime.datetime.strptime(startTime, '%Y-%m-%dT%H:%M:%S%z')
   except ValueError as e:
     print(f'Error: {e}')
-  return hours
+
+  return convertTime(hours)
 
 def convertTime(time):
-  return time
+  units = str(time).split(':')
+  minutesToDecimal = int(units[1]) / 60
+  convertedTime = f'{round(int(units[0])+minutesToDecimal, 2)}'
+  return convertedTime
     
 def setLastPulled(time):
     lastPulledEntry = time
@@ -122,7 +130,7 @@ def main():
     events = events_result.get("items", [])
 
     if not events:
-      print("No upcoming events found.")
+      print("No events found.")
       return
 
     # Prints the start and name of the last 10 events
@@ -131,11 +139,12 @@ def main():
       timezone = event["start"].get(event["start"].get("timeZone"))
       eventDate = start[:10]
       eventTime = start[12:]
-      parsedEventDescription = ParsedEventDescription(getRouteFromDescription(event["description"]), getHours(event["start"].get("dateTime"), event["end"].get("dateTime")))
+      eventDescription = event["description"]
+      parsedEventDescription = ParsedEventDescription(getRouteFromDescription(eventDescription), getHours(event["start"].get("dateTime"), event["end"].get("dateTime")))
     #   lastPulledEntry = setLastPulled(now)
     #   print(lastPulledEntry)
 
-      createNewMarkdownFile(f'{eventDate} - {getRouteFromDescription(event["description"])}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
+      createNewMarkdownFile(f'{eventDate} - {parsedEventDescription.route}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
 
   except HttpError as error:
     print(f"An error occurred: {error}")
