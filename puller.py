@@ -1,10 +1,10 @@
 # todo: 
-# - convert hours to decimal 
-# - keep pulling if event has no description - 
+# - keep pulling if event has no description 
 
 import datetime
 import os.path
 import re
+import json
 
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
@@ -18,11 +18,11 @@ load_dotenv()
 CALENDAR_ID = os.getenv('CALENDAR_ID')
 NEW_YORK = ZoneInfo("America/New_York")
 SCOPES = ["https://www.googleapis.com/auth/calendar.events.readonly", "https://www.googleapis.com/auth/calendar.calendarlist.readonly"] 
+SYNC_DATA = "creds/synced.json"
 
 currentRoute = "13"
 currentHoursWorked = 7.5
 currentDate = "2025-10-03"
-lastPulledEntry = ""
 hasGreenCardTime = "false"
 specialRoutesList = ["Amazon", "RCA Academy", "Orientation", "Shadow Day", "Driving Skills Course", "Defensive Driving Course"]
 
@@ -30,6 +30,16 @@ class ParsedEventDescription:
     def __init__(self, route, hours):
         self.route = route
         self.hours = hours
+
+class SyncTracker:
+  def __init__(self):
+    self.lastSynced = datetime.datetime.now(tz=NEW_YORK).isoformat()
+
+  def update(self, time):
+    self.lastSynced = time
+    return(self.lastSynced)
+
+syncTracker = SyncTracker()
 
 def getGreenCardTime(route):
   for specialRoute in specialRoutesList:
@@ -48,7 +58,7 @@ def getRouteFromDescription(description):
     else:
       return description
   else:
-    return ""
+    return "Unknown"
 
 def getHours(startTime, endTime):
   # subtract end time from start time and return that
@@ -64,10 +74,6 @@ def convertTime(time):
   minutesToDecimal = int(units[1]) / 60
   convertedTime = f'{round(int(units[0])+minutesToDecimal, 2)}'
   return convertedTime
-    
-def setLastPulled(time):
-    lastPulledEntry = time
-    return lastPulledEntry
 
 def createNoteTemplate(route, hours, date):
     return f'''---
@@ -89,9 +95,6 @@ def createNewMarkdownFile(filename, contents):
     file.close()
 
 def main():
-  """Shows basic usage of the Google Calendar API.
-  Prints the start and name of the next 10 events on the user's calendar.
-  """
   creds = None
   # The file token.json stores the user's access and refresh tokens, and is
   # created automatically when the authorization flow completes for the first
@@ -116,24 +119,35 @@ def main():
 
     # Call the Calendar API
     now = datetime.datetime.now(tz=NEW_YORK).isoformat()
-    print("Getting the upcoming 10 events")
+
+    # Save sync time to a file
+    if(os.path.exists(SYNC_DATA)):
+      with open(SYNC_DATA) as syncData:
+        lastSynced = json.load(syncData)
+    else:
+      lastSynced = now
+    with open(SYNC_DATA, "w") as syncData:
+      json.load = json.dump(lastSynced, syncData)
+
+    print(SYNC_DATA)
+
     events_result = (
         service.events()
         .list(
             calendarId=CALENDAR_ID,
             timeMax=now,
+            timeMin=lastSynced,
             singleEvents=True,
             orderBy="startTime",
         )
         .execute()
     )
     events = events_result.get("items", [])
-
+    print(f'Last synced: {lastSynced}, Now: {now}')
     if not events:
       print("No events found.")
       return
 
-    # Prints the start and name of the last 10 events
     for event in events:
       start = event["start"].get("dateTime", event["start"].get("date"))
       timezone = event["start"].get(event["start"].get("timeZone"))
@@ -141,10 +155,9 @@ def main():
       eventTime = start[12:]
       eventDescription = event["description"]
       parsedEventDescription = ParsedEventDescription(getRouteFromDescription(eventDescription), getHours(event["start"].get("dateTime"), event["end"].get("dateTime")))
-    #   lastPulledEntry = setLastPulled(now)
-    #   print(lastPulledEntry)
-
       createNewMarkdownFile(f'{eventDate} - {parsedEventDescription.route}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
+
+    syncTracker.update(syncTracker, time=now)
 
   except HttpError as error:
     print(f"An error occurred: {error}")
