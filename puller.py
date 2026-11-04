@@ -19,11 +19,21 @@ currentRoute = "13"
 currentHoursWorked = 7.5
 currentDate = "2025-10-03"
 lastPulledEntry = ""
+hasGreenCardTime = "false"
+specialRoutesList = ["Amazon", "RCA Academy", "Orientation", "Shadow Day", "Driving Skills Course", "Defensive Driving Course"]
 
 class ParsedEventDescription:
     def __init__(self, route, hours):
         self.route = route
         self.hours = hours
+
+def getGreenCardTime(route):
+  for specialRoute in specialRoutesList:
+    if route == specialRoute:
+      return "true"
+      break
+    else:
+      return "false"
 
 def getRouteFromDescription(description):
   if description:
@@ -43,6 +53,9 @@ def getHours(startTime, endTime):
   except ValueError as e:
     print(f'Error: {e}')
   return hours
+
+def convertTime(time):
+  return time
     
 def setLastPulled(time):
     lastPulledEntry = time
@@ -53,7 +66,7 @@ def createNoteTemplate(route, hours, date):
 Date Worked: {date}
 Route: "{route}"
 Hours Worked: {hours}
-Has Greencard Time: false
+Has Greencard Time: {getGreenCardTime(route)}
 aliases:
   - "{route} - {date}"
 title: "{route} - {date}"
@@ -121,8 +134,6 @@ def main():
       parsedEventDescription = ParsedEventDescription(getRouteFromDescription(event["description"]), getHours(event["start"].get("dateTime"), event["end"].get("dateTime")))
     #   lastPulledEntry = setLastPulled(now)
     #   print(lastPulledEntry)
-      print(f'now: {now}')
-      print(f'event: {start}')
 
       createNewMarkdownFile(f'{eventDate} - {getRouteFromDescription(event["description"])}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
 
