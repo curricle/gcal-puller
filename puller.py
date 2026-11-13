@@ -1,6 +1,3 @@
-# todo: 
-# - keep pulling if event has no description 
-
 import datetime
 import os.path
 import re
@@ -20,11 +17,12 @@ NEW_YORK = ZoneInfo("America/New_York")
 SCOPES = ["https://www.googleapis.com/auth/calendar.events.readonly", "https://www.googleapis.com/auth/calendar.calendarlist.readonly"] 
 SYNC_DATA = "creds/synced.json"
 
+# Default values
 currentRoute = "13"
 currentHoursWorked = 7.5
 currentDate = "2025-10-03"
 hasGreenCardTime = "false"
-specialRoutesList = ["Amazon", "RCA Academy", "Orientation", "Shadow Day", "Driving Skills Course", "Defensive Driving Course"]
+specialRoutesList = ["Amazon", "RCA Academy", "Orientation", "Shadow Day", "Driving Skills Course", "Defensive Driving Course", "None", "Multiple"]
 
 class ParsedEventDescription:
     def __init__(self, route, hours):
@@ -128,9 +126,7 @@ def main():
     else:
       lastSynced = now
     with open(SYNC_DATA, "w") as syncData:
-      json.load = json.dump(lastSynced, syncData)
-
-    print(SYNC_DATA)
+      json.load = json.dump(syncTracker.lastSynced, syncData)
 
     events_result = (
         service.events()
@@ -154,17 +150,18 @@ def main():
       timezone = event["start"].get(event["start"].get("timeZone"))
       eventDate = start[:10]
       eventTime = start[12:]
-      eventDescription = event["description"]
+      if "description" in event:
+        eventDescription = event["description"]
+      else:
+        eventDescription = ""
       parsedEventDescription = ParsedEventDescription(getRouteFromDescription(eventDescription), getHours(event["start"].get("dateTime"), event["end"].get("dateTime")))
       createNewMarkdownFile(f'{eventDate} - {parsedEventDescription.route}', createNoteTemplate(parsedEventDescription.route, parsedEventDescription.hours, eventDate))
 
-    syncTracker.update(syncTracker, time=now)
+    syncTracker.update(time=now)
+    print("file(s) created")
 
   except HttpError as error:
     print(f"An error occurred: {error}")
 
-
 if __name__ == "__main__":
   main()
-
-print("file created")
